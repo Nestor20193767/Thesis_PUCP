@@ -1,3 +1,4 @@
+# Components
 1. Arduino UNO
 2. Jumpers
 3. Power cable
