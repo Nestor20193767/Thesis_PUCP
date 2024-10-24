@@ -3,9 +3,18 @@ import serial
 import time
 import matplotlib.pyplot as plt
 import pandas as pd
+import serial.tools.list_ports
+
+
+
+# Función para detectar puertos seriales disponibles
+def detect_serial_ports():
+    ports = serial.tools.list_ports.comports()
+    return [port.device for port in ports]
 
 # Configuración del puerto serial
-serial_port = "COM3"  # Cambia esto por el puerto correcto
+available_ports = detect_serial_ports()
+serial_port = st.selectbox('Seleccione el puerto COM:', available_ports)  # Cambia esto por el puerto correcto
 baud_rate = 115200
 arduino = None
 
@@ -17,40 +26,30 @@ timestamps = []
 # Bandera para controlar la toma de datos
 is_collecting = False
 
-
 # Función para iniciar la toma de datos
 def start_data_collection():
     global arduino, is_collecting
-    try:
-        if arduino is None or not arduino.is_open:
-            arduino = serial.Serial(serial_port, baud_rate, timeout=1)
-        is_collecting = True
-        st.success("Captura de datos iniciada")
-    except serial.SerialException as e:
-        st.error(f"Error al abrir el puerto serial: {e}")
-        is_collecting = False
-
+    if arduino is None:
+        arduino = serial.Serial(serial_port, baud_rate, timeout=1)
+    is_collecting = True
 
 # Función para detener la toma de datos
 def stop_data_collection():
-    global is_collecting, arduino
+    global is_collecting
     is_collecting = False
-    if arduino and arduino.is_open:
+    if arduino:
         arduino.close()
-    st.success("Captura de datos detenida")
-
 
 # Función para guardar los datos en un archivo de texto
 def save_data_to_txt(filename):
-    try:
-        with open(filename, 'w') as file:
-            file.write("Time(s), Raw Voltage(V), Filtered Voltage(V)\n")
-            for i in range(len(timestamps)):
-                file.write(f"{timestamps[i]}, {raw_signal_data[i]}, {filtered_signal_data[i]}\n")
-        st.success(f"Datos guardados en {filename}")
-    except Exception as e:
-        st.error(f"Error al guardar los datos: {e}")
-
+    if len(timestamps) == 0:
+        st.warning("No hay datos para guardar.")
+        return
+    with open(filename, 'w') as file:
+        file.write("Time(s), Raw Voltage(V), Filtered Voltage(V)\n")
+        for i in range(len(timestamps)):
+            file.write(f"{timestamps[i]}, {raw_signal_data[i]}, {filtered_signal_data[i]}\n")
+    st.success(f"Datos guardados en {filename}")
 
 # Función para leer el puerto serial y extraer los datos
 def read_serial_data():
@@ -68,11 +67,9 @@ def read_serial_data():
                 filtered_voltage = float(filtered_volt_str)
 
                 return raw_voltage, filtered_voltage
-        except Exception as e:
-            st.error(f"Error al leer los datos: {e}")
+        except:
             return None, None
     return None, None
-
 
 # Crear la interfaz gráfica con Streamlit
 st.title("Captura de Datos desde Arduino")
@@ -129,4 +126,5 @@ if is_collecting:
 # Guardar los datos en archivo de texto al detener la captura
 if not is_collecting and st.button("Guardar Datos"):
     save_data_to_txt(f"{filename}.txt")
+
 
